@@ -242,4 +242,118 @@ body {
     .answer-text {
         font-size: 14px;
     }
+
+}
+/* Админ-панель */
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.admin-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.stat-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e1e3e6;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+.stat-number {
+    font-size: 24px;
+    font-weight: 600;
+    color: #4BB34B;
+    margin-bottom: 5px;
+}
+
+.admin-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.results-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.admin-result-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid #e1e3e6;
+    gap: 15px;
+}
+
+.admin-result-item:last-child {
+    border-bottom: none;
+}
+
+.result-rank {
+    width: 30px;
+    height: 30px;
+    background: #4BB34B;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.result-user {
+    flex: 1;
+    font-weight: 500;
+}
+
+.result-score {
+    font-weight: 600;
+    color: #4BB34B;
+    min-width: 80px;
+}
+
+.result-date {
+    color: #6D7885;
+    font-size: 12px;
+    min-width: 120px;
+    text-align: right;
+}
+
+/* Адаптивность для админки */
+@media (max-width: 768px) {
+    .admin-result-item {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .result-date {
+        text-align: left;
+        min-width: auto;
+    }
+    
+    .admin-actions {
+        flex-direction: column;
+    }
 }
