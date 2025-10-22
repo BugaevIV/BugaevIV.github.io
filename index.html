@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест по арт-фехтованию</title>
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Экран приветствия -->
+        <div id="welcome-screen" class="screen active">
+            <div class="header">
+                <h1>⚔️ Тест по арт-фехтованию</h1>
+                <p>Проверьте свои знания правил</p>
+            </div>
+            <div class="content">
+                <div class="info-card">
+                    <h3>Информация о тесте:</h3>
+                    <ul>
+                        <li>✅ 30 вопросов</li>
+                        <li>⏱ 15-20 минут</li>
+                        <li>📊 Автопроверка</li>
+                        <li>🏆 Сертификат результата</li>
+                    </ul>
+                </div>
+                <button class="vk-button" onclick="startTest()">Начать тест</button>
+            </div>
+        </div>
+
+        <!-- Экран теста -->
+        <div id="test-screen" class="screen">
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <span class="progress-text" id="progress-text">1/30</span>
+            </div>
+            
+            <div class="question-card">
+                <h2 id="question-text"></h2>
+                <div id="answers-container" class="answers-container"></div>
+            </div>
+            
+            <button class="vk-button" id="next-button" onclick="nextQuestion()" disabled>Далее</button>
+        </div>
+
+        <!-- Экран результатов -->
+        <div id="result-screen" class="screen">
+            <div class="result-header">
+                <h1>🎉 Тест завершен!</h1>
+            </div>
+            <div class="result-card">
+                <div class="score-circle" id="score-circle">
+                    <span id="score-percent">0%</span>
+                </div>
+                <h3>Ваш результат</h3>
+                <p id="result-text"></p>
+                <div class="result-details">
+                    <div class="stat">
+                        <span class="stat-value" id="correct-answers">0</span>
+                        <span class="stat-label">Правильных ответов</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="total-questions">30</span>
+                        <span class="stat-label">Всего вопросов</span>
+                    </div>
+                </div>
+            </div>
+            <button class="vk-button" onclick="restartTest()">Пройти ещё раз</button>
+            <button class="vk-button secondary" onclick="shareResult()">Поделиться результатом</button>
+        </div>
+    </div>
+
+    <script src="questions.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
