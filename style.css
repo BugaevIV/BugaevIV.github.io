@@ -188,6 +188,7 @@ body {
     cursor: pointer;
     transition: all 0.2s;
     background: #fff;
+    position: relative;
 }
 
 .answer-option:hover {
@@ -200,9 +201,63 @@ body {
     background: #F0FFF0;
 }
 
+.answer-option.correct {
+    border-color: #4BB34B;
+    background: #F0FFF0;
+}
+
+.answer-option.incorrect {
+    border-color: #ff4757;
+    background: #FFF0F0;
+}
+
+.answer-option.disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
 .answer-text {
     font-size: 16px;
     line-height: 1.4;
+}
+
+/* Объяснение */
+.explanation-container {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f0f8ff;
+    border-radius: 8px;
+    border-left: 4px solid #4BB34B;
+}
+
+.explanation-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.explanation-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.explanation-container p {
+    margin: 0;
+    color: #34495e;
+    line-height: 1.5;
+}
+
+/* Действия в тесте */
+.test-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.test-actions .vk-button {
+    flex: 1;
+    margin-bottom: 0;
 }
 
 /* Результаты */
@@ -462,6 +517,11 @@ body {
     color: white;
 }
 
+.test-badge.tutorial {
+    background: #2ed573;
+    color: white;
+}
+
 .test-difficulty {
     padding: 4px 8px;
     border-radius: 12px;
@@ -480,7 +540,7 @@ body {
     color: white;
 }
 
-.test-difficulty.обязательный {
+.test-difficulty.обучающий {
     background: #3742fa;
     color: white;
 }
@@ -688,6 +748,10 @@ body {
     .result-date {
         text-align: left;
         min-width: auto;
+    }
+    
+    .test-actions {
+        flex-direction: column;
     }
 }
 
