@@ -356,4 +356,106 @@ body {
     .admin-actions {
         flex-direction: column;
     }
+    /* Стили для управления тестами */
+.test-management-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
 }
+
+.test-management-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 15px;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #4BB34B;
+}
+
+.test-management-info {
+    flex: 1;
+}
+
+.test-management-info h4 {
+    margin: 0 0 5px 0;
+    color: #000;
+}
+
+.test-management-info p {
+    margin: 0 0 8px 0;
+    color: #6D7885;
+}
+
+.test-management-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 12px;
+    color: #99A2AD;
+}
+
+.test-management-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.vk-button.small {
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+.vk-button.danger {
+    background: #ff4757;
+}
+
+.vk-button.danger:hover {
+    background: #ff3742;
+}
+
+.custom-tests-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.format-example {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 15px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.help-text {
+    color: #6D7885;
+    font-size: 14px;
+    margin-top: 10px;
+    text-align: center;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .test-management-item {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .test-management-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+    
+    .test-management-actions .vk-button {
+        flex: 1;
+    }
+    
+    .test-management-meta {
+        flex-direction: column;
+        gap: 5px;
+    }
+}
+}
+
