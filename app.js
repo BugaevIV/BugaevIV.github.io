@@ -11,7 +11,8 @@ let appState = {
     userId: null,
     userName: 'Гость',
     currentTest: null,
-    availableTests: []
+    availableTests: [],
+    testCompleted: false
 };
 
 // Хранилище результатов
@@ -97,6 +98,7 @@ async function selectTest(testId) {
         const test = await testLoader.loadTest(testId);
         if (test) {
             appState.currentTest = test;
+            appState.testCompleted = false;
             showScreen('welcome');
         } else {
             throw new Error('Тест не найден');
@@ -149,6 +151,7 @@ function fillTestSelection() {
         const isLocal = test.isLocal;
         const isCustom = test.isCustom;
         const isBuiltIn = test.isBuiltIn;
+        const isTutorial = test.mode === 'tutorial';
         
         testElement.innerHTML = `
             <div class="test-card-header">
@@ -157,6 +160,7 @@ function fillTestSelection() {
                     ${isLocal ? '<span class="test-badge local">Локальный</span>' : ''}
                     ${isCustom ? '<span class="test-badge custom">Пользовательский</span>' : ''}
                     ${isBuiltIn ? '<span class="test-badge local">Встроенный</span>' : ''}
+                    ${isTutorial ? '<span class="test-badge tutorial">Обучающий</span>' : ''}
                     <span class="test-difficulty ${test.difficulty ? test.difficulty.toLowerCase() : 'default'}">
                         ${test.difficulty || 'Стандартный'}
                     </span>
@@ -167,6 +171,7 @@ function fillTestSelection() {
                 ${test.duration ? `<span class="test-meta-item">⏱ ${test.duration}</span>` : ''}
                 ${test.totalQuestions ? `<span class="test-meta-item">❓ ${test.totalQuestions} вопросов</span>` : ''}
                 ${test.author ? `<span class="test-meta-item">👤 ${test.author}</span>` : ''}
+                ${isTutorial ? '<span class="test-meta-item">💡 С подсказками</span>' : ''}
             </div>
             <div class="test-actions">
                 <button class="vk-button" onclick="selectTest('${test.id}')">Выбрать тест</button>
@@ -194,6 +199,7 @@ function startTest() {
     appState.userAnswers = [];
     appState.score = 0;
     appState.startTime = new Date();
+    appState.testCompleted = false;
     
     showScreen('test');
     displayQuestion();
@@ -212,6 +218,9 @@ function displayQuestion() {
     
     document.getElementById('question-text').textContent = question.question;
     
+    // Скрываем объяснение
+    document.getElementById('explanation-container').style.display = 'none';
+    
     const answersContainer = document.getElementById('answers-container');
     answersContainer.innerHTML = '';
     
@@ -227,6 +236,11 @@ function displayQuestion() {
     });
     
     document.getElementById('next-button').disabled = true;
+    
+    // Для обучающего режима показываем подсказку
+    if (appState.currentTest.mode === 'tutorial') {
+        document.getElementById('next-button').textContent = 'Выберите ответ для проверки';
+    }
 }
 
 // Выбор ответа
@@ -234,13 +248,64 @@ function selectAnswer(answerIndex) {
     const question = appState.currentTest.questions[appState.currentQuestion];
     const answerOptions = document.querySelectorAll('.answer-option');
     
+    // Если это обучающий режим и ответ уже проверялся, не делаем ничего
+    if (appState.currentTest.mode === 'tutorial' && appState.userAnswers[appState.currentQuestion]) {
+        return;
+    }
+    
     answerOptions.forEach(option => {
         option.classList.remove('selected');
     });
     
     answerOptions[answerIndex].classList.add('selected');
     appState.userAnswers[appState.currentQuestion] = [answerIndex];
+    
+    // В обучающем режиме сразу проверяем ответ
+    if (appState.currentTest.mode === 'tutorial') {
+        checkAnswerInTutorialMode(answerIndex, question);
+    } else {
+        document.getElementById('next-button').disabled = false;
+    }
+}
+
+// Проверка ответа в обучающем режиме
+function checkAnswerInTutorialMode(userAnswer, question) {
+    const answerOptions = document.querySelectorAll('.answer-option');
+    const isCorrect = Array.isArray(question.correct) 
+        ? question.correct.includes(userAnswer)
+        : question.correct === userAnswer;
+    
+    // Подсвечиваем правильные и неправильные ответы
+    answerOptions.forEach((option, index) => {
+        const isUserAnswer = index === userAnswer;
+        const isRightAnswer = Array.isArray(question.correct) 
+            ? question.correct.includes(index)
+            : question.correct === index;
+        
+        if (isRightAnswer) {
+            option.classList.add('correct');
+        } else if (isUserAnswer && !isRightAnswer) {
+            option.classList.add('incorrect');
+        }
+        
+        // Блокируем все варианты после выбора
+        option.classList.add('disabled');
+    });
+    
+    // Показываем объяснение
+    if (question.explanation) {
+        document.getElementById('explanation-text').textContent = question.explanation;
+        document.getElementById('explanation-container').style.display = 'block';
+    }
+    
+    // Обновляем счет
+    if (isCorrect) {
+        appState.score++;
+    }
+    
+    // Активируем кнопку "Далее"
     document.getElementById('next-button').disabled = false;
+    document.getElementById('next-button').textContent = 'Далее';
 }
 
 // Следующий вопрос
@@ -254,21 +319,46 @@ function nextQuestion() {
     }
 }
 
+// Досрочное завершение теста
+function finishTestEarly() {
+    if (confirm('Вы уверены, что хотите завершить тест досрочно? Все ответы до текущего вопроса будут сохранены.')) {
+        finishTest();
+    }
+}
+
 // Завершение теста
 function finishTest() {
     appState.endTime = new Date();
-    calculateScore();
+    appState.testCompleted = true;
+    
+    // Для экзаменационного режима вычисляем результат
+    if (appState.currentTest.mode === 'exam') {
+        calculateScore();
+    }
     
     const timeSpent = Math.round((appState.endTime - appState.startTime) / 1000);
-    const percentage = Math.round((appState.score / appState.currentTest.questions.length) * 100);
     
-    // Сохраняем результат
-    saveTestResult(appState.score, percentage, timeSpent);
+    // Для обучающего режима процент = (правильные ответы / общее количество вопросов) * 100
+    // Для экзаменационного режима используем обычный расчет
+    let percentage;
+    if (appState.currentTest.mode === 'tutorial') {
+        percentage = Math.round((appState.score / appState.currentTest.questions.length) * 100);
+    } else {
+        percentage = Math.round((appState.score / appState.currentTest.questions.length) * 100);
+    }
+    
+    // Сохраняем результат (только для экзаменационного режима)
+    if (appState.currentTest.mode === 'exam') {
+        saveTestResult(appState.score, percentage, timeSpent);
+    }
+    
     showResults(percentage, timeSpent);
 }
 
-// Расчет результатов
+// Расчет результатов (только для экзаменационного режима)
 function calculateScore() {
+    if (appState.currentTest.mode !== 'exam') return;
+    
     appState.score = 0;
     
     appState.currentTest.questions.forEach((question, index) => {
@@ -291,8 +381,10 @@ function calculateScore() {
     });
 }
 
-// Сохранение результата теста
+// Сохранение результата теста (только для экзаменационного режима)
 function saveTestResult(score, percentage, timeSpent) {
+    if (appState.currentTest.mode !== 'exam') return;
+    
     const result = {
         id: Date.now(),
         userId: appState.userId,
@@ -331,16 +423,28 @@ function showResults(percentage, timeSpent) {
     const resultText = document.getElementById('result-text');
     let message = '';
     
-    const scoring = appState.currentTest.scoring || { excellent: 80, good: 60, satisfactory: 40 };
-    
-    if (percentage >= scoring.excellent) {
-        message = 'Отлично! Вы настоящий эксперт! 🏆';
-    } else if (percentage >= scoring.good) {
-        message = 'Хороший результат! Вы хорошо знаете материал. 👍';
-    } else if (percentage >= scoring.satisfactory) {
-        message = 'Неплохо, но есть что повторить. 📚';
+    // Разные сообщения для разных режимов
+    if (appState.currentTest.mode === 'tutorial') {
+        if (percentage >= 80) {
+            message = 'Отлично! Вы отлично усвоили материал! 🎓';
+        } else if (percentage >= 60) {
+            message = 'Хорошо! Вы хорошо разобрались в теме! 👍';
+        } else {
+            message = 'Повторите материал и попробуйте снова! 📚';
+        }
+        message += ' Этот тест был в обучающем режиме.';
     } else {
-        message = 'Вам стоит изучить материал внимательнее. 💪';
+        const scoring = appState.currentTest.scoring || { excellent: 80, good: 60, satisfactory: 40 };
+        
+        if (percentage >= scoring.excellent) {
+            message = 'Отлично! Вы настоящий эксперт! 🏆';
+        } else if (percentage >= scoring.good) {
+            message = 'Хороший результат! Вы хорошо знаете материал. 👍';
+        } else if (percentage >= scoring.satisfactory) {
+            message = 'Неплохо, но есть что повторить. 📚';
+        } else {
+            message = 'Вам стоит изучить материал внимательнее. 💪';
+        }
     }
     
     resultText.textContent = message;
@@ -548,6 +652,7 @@ function updateTestManagement() {
                 <p>${test.description || 'Без описания'}</p>
                 <div class="test-management-meta">
                     <span>Вопросов: ${test.questions.length}</span>
+                    <span>Режим: ${test.mode === 'tutorial' ? 'Обучающий' : 'Экзамен'}</span>
                     <span>Загружен: ${new Date(test.loadDate).toLocaleDateString()}</span>
                 </div>
             </div>
@@ -634,9 +739,12 @@ function createNewTest() {
     
     const description = prompt('Введите описание теста:') || '';
     
+    const mode = confirm('Сделать тест обучающим (с подсказками)?') ? 'tutorial' : 'exam';
+    
     const newTest = {
         title: title,
         description: description,
+        mode: mode,
         questions: [],
         scoring: {
             excellent: 80,
@@ -664,6 +772,9 @@ function editTest(testId) {
     const newDescription = prompt('Новое описание теста:', test.description || '');
     test.description = newDescription;
     
+    const newMode = confirm('Сделать тест обучающим (с подсказками)?') ? 'tutorial' : 'exam';
+    test.mode = newMode;
+    
     testLoader.saveCustomTestsToStorage();
     updateTestManagement();
     alert('Тест обновлен!');
@@ -679,6 +790,7 @@ function previewTest(testId) {
     
     let previewText = `Название: ${test.title}\n`;
     previewText += `Описание: ${test.description || 'нет'}\n`;
+    previewText += `Режим: ${test.mode === 'tutorial' ? 'Обучающий' : 'Экзамен'}\n`;
     previewText += `Вопросов: ${test.questions.length}\n\n`;
     
     test.questions.forEach((question, index) => {
@@ -686,7 +798,11 @@ function previewTest(testId) {
         question.answers.forEach((answer, ansIndex) => {
             previewText += `  ${ansIndex + 1}. ${answer}\n`;
         });
-        previewText += `Правильный ответ: ${Array.isArray(question.correct) ? question.correct.join(', ') : question.correct}\n\n`;
+        previewText += `Правильный ответ: ${Array.isArray(question.correct) ? question.correct.join(', ') : question.correct}\n`;
+        if (question.explanation) {
+            previewText += `Объяснение: ${question.explanation}\n`;
+        }
+        previewText += '\n';
     });
     
     alert(previewText);
