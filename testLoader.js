@@ -79,7 +79,7 @@ class TestLoader {
 
     // Ручное сканирование тестов
     async scanManualTests() {
-        const testFiles = ['test1.json', 'test2.json', 'test3.json', 'questions.json', 'test_main.json', 'test_beginner.json', 'test_safety.json'];
+        const testFiles = ['test1.json', 'test2.json', 'test3.json', 'questions.json', 'test_main.json', 'test_beginner.json', 'test_tutorial.json'];
         
         for (const file of testFiles) {
             try {
@@ -103,50 +103,38 @@ class TestLoader {
         }
     }
 
-    // Загрузка встроенных тестов (резервные)
+    // Загрузка встроенных тестов (резервные) - УБИРАЕМ тест по безопасности
     async loadBuiltInTests() {
         const builtInTests = [
             {
-                id: 'basic_safety',
-                filename: 'builtin_basic_safety.json',
-                title: 'Базовый тест по технике безопасности',
-                description: 'Основные правила безопасности в арт-фехтовании',
-                difficulty: 'Обязательный',
-                duration: '5-7 минут',
-                totalQuestions: 8,
+                id: 'tutorial',
+                filename: 'builtin_tutorial.json',
+                title: 'Обучающий тест по арт-фехтованию',
+                description: 'Тест с подсказками и объяснениями для обучения',
+                difficulty: 'Обучающий',
+                duration: '10-15 минут',
+                totalQuestions: 5,
+                mode: 'tutorial',
                 isBuiltIn: true,
                 questions: [
                     {
                         id: 1,
-                        question: "На каком минимальном расстоянии от тела партнера должно быть остановлено оружие при атаке?",
+                        question: "Что является основной спецификой арт-фехтования?",
                         type: "single",
                         answers: [
-                            "1-5 см.",
-                            "15-20 см.",
-                            "30-40 см.",
-                            "50 см."
+                            "Все участники постановки -- соперники, борющиеся за победу.",
+                            "Все действия участников заранее известны и отрепетированы, а они сами -- партнеры по команде.",
+                            "Поединок ведется в полном защитном снаряжении.",
+                            "Разрешена и поощряется импровизация для оживления боя."
                         ],
                         correct: 1,
-                        explanation: "Правила безопасности требуют останавливать оружие на расстоянии 15-20 см от тела партнера."
-                    },
-                    {
-                        id: 2,
-                        question: "Куда запрещено проводить обезоруживание оружия?",
-                        type: "single",
-                        answers: [
-                            "В сторону кулис.",
-                            "В сторону зрительного зала.",
-                            "Оба варианта верны.",
-                            "Обезоруживание разрешено в любую сторону."
-                        ],
-                        correct: 2,
-                        explanation: "Обезоруживание в сторону зрительного зала и кулис запрещено для обеспечения безопасности."
+                        explanation: "Это основа определения арт-фехтования. Участники — не соперники, а партнеры, показывающие заранее подготовленную постановку."
                     }
                 ],
                 scoring: {
-                    excellent: 7,
-                    good: 5,
-                    satisfactory: 4
+                    excellent: 80,
+                    good: 60,
+                    satisfactory: 40
                 }
             }
         ];
@@ -160,6 +148,7 @@ class TestLoader {
                 difficulty: test.difficulty,
                 duration: test.duration,
                 totalQuestions: test.totalQuestions,
+                mode: test.mode,
                 isBuiltIn: true
             });
             this.loadedTests.set(test.id, test);
@@ -202,6 +191,11 @@ class TestLoader {
             testData.loadDate = new Date().toISOString();
             testData.isRemote = true;
 
+            // Устанавливаем режим по умолчанию, если не указан
+            if (!testData.mode) {
+                testData.mode = 'exam';
+            }
+
             // Сохраняем в кеш
             this.loadedTests.set(testId, testData);
             
@@ -227,6 +221,11 @@ class TestLoader {
             throw new Error('Неверный формат теста');
         }
 
+        // Устанавливаем режим по умолчанию, если не указан
+        if (!testData.mode) {
+            testData.mode = 'exam';
+        }
+
         // Добавляем мета-информацию
         testData.id = id;
         testData.loadDate = new Date().toISOString();
@@ -242,7 +241,8 @@ class TestLoader {
                 filename: `custom_${id}.json`,
                 title: testData.title || 'Пользовательский тест',
                 description: testData.description || 'Загруженный тест',
-                isCustom: true
+                isCustom: true,
+                mode: testData.mode
             });
         }
 
@@ -297,7 +297,8 @@ class TestLoader {
             filename: `custom_${test.id}.json`,
             title: test.title,
             description: test.description,
-            isCustom: true
+            isCustom: true,
+            mode: test.mode
         }))];
         
         await this.scanAvailableTests();
