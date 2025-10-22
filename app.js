@@ -1,16 +1,20 @@
+// app.js - Основная логика приложения
+
 // Состояние приложения
 let appState = {
-    currentScreen: 'welcome',
+    currentScreen: 'loading',
     currentQuestion: 0,
     userAnswers: [],
     score: 0,
     startTime: null,
     endTime: null,
     userId: null,
-    userName: 'Гость'
+    userName: 'Гость',
+    currentTest: null,
+    availableTests: []
 };
 
-// Хранилище результатов (в реальном приложении заменить на серверную БД)
+// Хранилище результатов
 let resultsStorage = {
     users: [],
     results: [],
@@ -18,16 +22,36 @@ let resultsStorage = {
 };
 
 // Инициализация приложения
-document.addEventListener('DOMContentLoaded', function() {
-    // Инициализация VK Bridge
-    if (typeof vkBridge !== 'undefined') {
-        vkBridge.send('VKWebAppInit');
-        getUserInfo();
-    }
+document.addEventListener('DOMContentLoaded', async function() {
+    // Показываем экран загрузки
+    showScreen('loading');
     
-    // Загрузка сохраненных результатов из localStorage
-    loadResults();
-    showScreen('welcome');
+    try {
+        // Инициализация VK Bridge
+        if (typeof vkBridge !== 'undefined') {
+            await vkBridge.send('VKWebAppInit');
+            getUserInfo();
+        } else {
+            generateGuestId();
+        }
+        
+        // Инициализация загрузчика тестов
+        await testLoader.init();
+        
+        // Загрузка доступных тестов
+        appState.availableTests = testLoader.getAvailableTests();
+        
+        // Загрузка сохраненных результатов
+        loadResults();
+        
+        // Переходим к выбору теста
+        showScreen('test-selection');
+        
+    } catch (error) {
+        console.error('Ошибка инициализации:', error);
+        document.getElementById('loading-error').style.display = 'block';
+        document.getElementById('loading-spinner').style.display = 'none';
+    }
 });
 
 // Получение информации о пользователе
@@ -65,49 +89,107 @@ function saveResults() {
     localStorage.setItem('fencingTestResults', JSON.stringify(resultsStorage));
 }
 
-// Сохранение результата теста
-function saveTestResult(score, percentage, timeSpent) {
-    const result = {
-        id: Date.now(),
-        userId: appState.userId,
-        userName: appState.userName,
-        score: score,
-        total: testQuestions.length,
-        percentage: percentage,
-        timeSpent: timeSpent,
-        date: new Date().toISOString(),
-        answers: [...appState.userAnswers]
-    };
-    
-    // Проверяем, есть ли уже результат у этого пользователя
-    const existingIndex = resultsStorage.results.findIndex(r => r.userId === appState.userId);
-    if (existingIndex !== -1) {
-        resultsStorage.results[existingIndex] = result;
-    } else {
-        resultsStorage.results.push(result);
+// Выбор теста
+async function selectTest(testId) {
+    try {
+        showScreen('loading');
+        
+        const test = await testLoader.loadTest(testId);
+        if (test) {
+            appState.currentTest = test;
+            showScreen('welcome');
+        } else {
+            throw new Error('Тест не найден');
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки теста:', error);
+        alert('Не удалось загрузить тест. Попробуйте позже.');
+        showScreen('test-selection');
     }
-    
-    saveResults();
-    return result;
 }
 
-// Показ экранов
-function showScreen(screenName) {
-    document.querySelectorAll('.screen').forEach(screen => {
-        screen.classList.remove('active');
+// Обновление списка тестов
+async function refreshTests() {
+    try {
+        showScreen('loading');
+        
+        // Очищаем кеш и перезагружаем
+        await testLoader.refreshTests();
+        
+        appState.availableTests = testLoader.getAvailableTests();
+        showScreen('test-selection');
+        
+    } catch (error) {
+        console.error('Ошибка обновления:', error);
+        alert('Не удалось обновить список тестов');
+        showScreen('test-selection');
+    }
+}
+
+// Заполнение списка тестов
+function fillTestSelection() {
+    const container = document.getElementById('tests-container');
+    container.innerHTML = '';
+    
+    if (appState.availableTests.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <h3>Тесты не найдены</h3>
+                <p>Нет доступных тестов для загрузки</p>
+                <button class="vk-button" onclick="refreshTests()">Обновить</button>
+            </div>
+        `;
+        return;
+    }
+    
+    appState.availableTests.forEach(test => {
+        const testElement = document.createElement('div');
+        testElement.className = 'test-card';
+        
+        const isLocal = test.isLocal;
+        const isCustom = test.isCustom;
+        const isBuiltIn = test.isBuiltIn;
+        
+        testElement.innerHTML = `
+            <div class="test-card-header">
+                <h3>${test.title}</h3>
+                <div class="test-badges">
+                    ${isLocal ? '<span class="test-badge local">Локальный</span>' : ''}
+                    ${isCustom ? '<span class="test-badge custom">Пользовательский</span>' : ''}
+                    ${isBuiltIn ? '<span class="test-badge local">Встроенный</span>' : ''}
+                    <span class="test-difficulty ${test.difficulty ? test.difficulty.toLowerCase() : 'default'}">
+                        ${test.difficulty || 'Стандартный'}
+                    </span>
+                </div>
+            </div>
+            <p class="test-description">${test.description}</p>
+            <div class="test-meta">
+                ${test.duration ? `<span class="test-meta-item">⏱ ${test.duration}</span>` : ''}
+                ${test.totalQuestions ? `<span class="test-meta-item">❓ ${test.totalQuestions} вопросов</span>` : ''}
+                ${test.author ? `<span class="test-meta-item">👤 ${test.author}</span>` : ''}
+            </div>
+            <div class="test-actions">
+                <button class="vk-button" onclick="selectTest('${test.id}')">Выбрать тест</button>
+                ${isCustom ? `<button class="vk-button secondary small" onclick="removeCustomTest('${test.id}')">Удалить</button>` : ''}
+            </div>
+        `;
+        container.appendChild(testElement);
     });
-    
-    document.getElementById(screenName + '-screen').classList.add('active');
-    appState.currentScreen = screenName;
-    
-    // Если показываем админку, обновляем статистику
-    if (screenName === 'admin') {
-        updateAdminStats();
+}
+
+// Удаление пользовательского теста
+function removeCustomTest(testId) {
+    if (confirm('Удалить этот тест из списка?')) {
+        testLoader.removeCustomTest(testId);
+        appState.availableTests = appState.availableTests.filter(t => t.id !== testId);
+        fillTestSelection();
     }
 }
 
 // Начало теста
 function startTest() {
+    if (!appState.currentTest) return;
+    
     appState.currentQuestion = 0;
     appState.userAnswers = [];
     appState.score = 0;
@@ -119,12 +201,14 @@ function startTest() {
 
 // Отображение вопроса
 function displayQuestion() {
-    const question = testQuestions[appState.currentQuestion];
-    const progress = ((appState.currentQuestion) / testQuestions.length) * 100;
+    if (!appState.currentTest) return;
+    
+    const question = appState.currentTest.questions[appState.currentQuestion];
+    const progress = ((appState.currentQuestion) / appState.currentTest.questions.length) * 100;
     
     document.getElementById('progress-fill').style.width = progress + '%';
     document.getElementById('progress-text').textContent = 
-        `${appState.currentQuestion + 1}/${testQuestions.length}`;
+        `${appState.currentQuestion + 1}/${appState.currentTest.questions.length}`;
     
     document.getElementById('question-text').textContent = question.question;
     
@@ -147,7 +231,7 @@ function displayQuestion() {
 
 // Выбор ответа
 function selectAnswer(answerIndex) {
-    const question = testQuestions[appState.currentQuestion];
+    const question = appState.currentTest.questions[appState.currentQuestion];
     const answerOptions = document.querySelectorAll('.answer-option');
     
     answerOptions.forEach(option => {
@@ -163,7 +247,7 @@ function selectAnswer(answerIndex) {
 function nextQuestion() {
     appState.currentQuestion++;
     
-    if (appState.currentQuestion < testQuestions.length) {
+    if (appState.currentQuestion < appState.currentTest.questions.length) {
         displayQuestion();
     } else {
         finishTest();
@@ -176,7 +260,7 @@ function finishTest() {
     calculateScore();
     
     const timeSpent = Math.round((appState.endTime - appState.startTime) / 1000);
-    const percentage = Math.round((appState.score / testQuestions.length) * 100);
+    const percentage = Math.round((appState.score / appState.currentTest.questions.length) * 100);
     
     // Сохраняем результат
     saveTestResult(appState.score, percentage, timeSpent);
@@ -187,7 +271,7 @@ function finishTest() {
 function calculateScore() {
     appState.score = 0;
     
-    testQuestions.forEach((question, index) => {
+    appState.currentTest.questions.forEach((question, index) => {
         const userAnswer = appState.userAnswers[index];
         
         if (!userAnswer) return;
@@ -207,9 +291,30 @@ function calculateScore() {
     });
 }
 
+// Сохранение результата теста
+function saveTestResult(score, percentage, timeSpent) {
+    const result = {
+        id: Date.now(),
+        userId: appState.userId,
+        userName: appState.userName,
+        testId: appState.currentTest.id,
+        testTitle: appState.currentTest.title,
+        score: score,
+        total: appState.currentTest.questions.length,
+        percentage: percentage,
+        timeSpent: timeSpent,
+        date: new Date().toISOString(),
+        answers: [...appState.userAnswers]
+    };
+    
+    resultsStorage.results.push(result);
+    saveResults();
+    return result;
+}
+
 // Показ результатов
 function showResults(percentage, timeSpent) {
-    const totalQuestions = testQuestions.length;
+    const totalQuestions = appState.currentTest.questions.length;
     const correctAnswers = appState.score;
     const minutes = Math.floor(timeSpent / 60);
     const seconds = timeSpent % 60;
@@ -218,6 +323,7 @@ function showResults(percentage, timeSpent) {
     document.getElementById('correct-answers').textContent = correctAnswers;
     document.getElementById('total-questions').textContent = totalQuestions;
     document.getElementById('time-spent').textContent = `${minutes} мин ${seconds} сек`;
+    document.getElementById('test-title').textContent = appState.currentTest.title;
     
     const scoreCircle = document.getElementById('score-circle');
     scoreCircle.style.setProperty('--progress', percentage + '%');
@@ -225,21 +331,189 @@ function showResults(percentage, timeSpent) {
     const resultText = document.getElementById('result-text');
     let message = '';
     
-    if (percentage >= 90) {
-        message = 'Отлично! Вы настоящий эксперт в арт-фехтовании! 🏆';
-    } else if (percentage >= 70) {
-        message = 'Хороший результат! Вы хорошо знаете правила. 👍';
-    } else if (percentage >= 50) {
+    const scoring = appState.currentTest.scoring || { excellent: 80, good: 60, satisfactory: 40 };
+    
+    if (percentage >= scoring.excellent) {
+        message = 'Отлично! Вы настоящий эксперт! 🏆';
+    } else if (percentage >= scoring.good) {
+        message = 'Хороший результат! Вы хорошо знаете материал. 👍';
+    } else if (percentage >= scoring.satisfactory) {
         message = 'Неплохо, но есть что повторить. 📚';
     } else {
-        message = 'Вам стоит изучить правила внимательнее. 💪';
+        message = 'Вам стоит изучить материал внимательнее. 💪';
     }
     
     resultText.textContent = message;
     showScreen('result');
 }
 
-// Функции для администратора (добавляем в app.js)
+// Админ-панель
+function showAdminPanel() {
+    const password = prompt('Введите пароль администратора:');
+    if (password === resultsStorage.adminKey) {
+        showScreen('admin');
+        updateAdminStats();
+    } else {
+        alert('Неверный пароль!');
+    }
+}
+
+// Обновление статистики в админке
+function updateAdminStats() {
+    const results = resultsStorage.results;
+    
+    // Общая статистика
+    document.getElementById('total-tests').textContent = results.length;
+    
+    const averagePercentage = results.length > 0 ? 
+        Math.round(results.reduce((sum, r) => sum + r.percentage, 0) / results.length) : 0;
+    document.getElementById('average-score').textContent = averagePercentage + '%';
+    
+    // Статистика по тестам
+    const testStats = {};
+    appState.availableTests.forEach(test => {
+        testStats[test.id] = {
+            title: test.title,
+            count: 0,
+            totalPercentage: 0
+        };
+    });
+    
+    results.forEach(result => {
+        if (testStats[result.testId]) {
+            testStats[result.testId].count++;
+            testStats[result.testId].totalPercentage += result.percentage;
+        }
+    });
+    
+    const testStatsContainer = document.getElementById('test-stats');
+    testStatsContainer.innerHTML = '';
+    
+    Object.values(testStats).forEach(stat => {
+        if (stat.count > 0) {
+            const avg = Math.round(stat.totalPercentage / stat.count);
+            const statElement = document.createElement('div');
+            statElement.className = 'test-stat-item';
+            statElement.innerHTML = `
+                <div class="test-stat-title">${stat.title}</div>
+                <div class="test-stat-numbers">
+                    <span class="test-stat-count">${stat.count} тестов</span>
+                    <span class="test-stat-avg">Средний: ${avg}%</span>
+                </div>
+            `;
+            testStatsContainer.appendChild(statElement);
+        }
+    });
+    
+    // Лучшие результаты
+    const bestResults = [...results].sort((a, b) => b.percentage - a.percentage).slice(0, 5);
+    const bestResultsContainer = document.getElementById('best-results');
+    bestResultsContainer.innerHTML = '';
+    
+    bestResults.forEach((result, index) => {
+        const resultElement = document.createElement('div');
+        resultElement.className = 'admin-result-item';
+        resultElement.innerHTML = `
+            <div class="result-rank">${index + 1}</div>
+            <div class="result-user">${result.userName}</div>
+            <div class="result-test">${result.testTitle}</div>
+            <div class="result-score">${result.percentage}%</div>
+            <div class="result-date">${new Date(result.date).toLocaleDateString()}</div>
+        `;
+        bestResultsContainer.appendChild(resultElement);
+    });
+    
+    // Все результаты
+    const allResultsContainer = document.getElementById('all-results');
+    allResultsContainer.innerHTML = '';
+    
+    results.forEach((result, index) => {
+        const resultElement = document.createElement('div');
+        resultElement.className = 'admin-result-item';
+        resultElement.innerHTML = `
+            <div class="result-rank">${index + 1}</div>
+            <div class="result-user">${result.userName}</div>
+            <div class="result-test">${result.testTitle}</div>
+            <div class="result-score">${result.score}/${result.total} (${result.percentage}%)</div>
+            <div class="result-date">${new Date(result.date).toLocaleString()}</div>
+        `;
+        allResultsContainer.appendChild(resultElement);
+    });
+}
+
+// Экспорт результатов
+function exportResults() {
+    const data = JSON.stringify(resultsStorage.results, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fencing_results_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// Очистка результатов
+function clearResults() {
+    if (confirm('Вы уверены, что хотите удалить все результаты? Это действие нельзя отменить.')) {
+        resultsStorage.results = [];
+        saveResults();
+        updateAdminStats();
+        alert('Результаты очищены!');
+    }
+}
+
+// Перезапуск теста
+function restartTest() {
+    showScreen('test-selection');
+}
+
+// Поделиться результатом
+function shareResult() {
+    const percentage = Math.round((appState.score / appState.currentTest.questions.length) * 100);
+    
+    if (typeof vkBridge !== 'undefined') {
+        vkBridge.send('VKWebAppShowWallPostBox', {
+            message: `Я прошел тест "${appState.currentTest.title}" и набрал ${percentage}%! Проверь свои знания тоже!`
+        }).catch(error => {
+            alert(`Мой результат в тесте "${appState.currentTest.title}": ${percentage}% правильных ответов!`);
+        });
+    } else {
+        alert(`Мой результат в тесте "${appState.currentTest.title}": ${percentage}% правильных ответов!`);
+    }
+}
+
+// Показ экранов
+function showScreen(screenName) {
+    document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+    });
+    
+    document.getElementById(screenName + '-screen').classList.add('active');
+    appState.currentScreen = screenName;
+    
+    // Обновляем информацию на экранах
+    if (screenName === 'welcome' && appState.currentTest) {
+        document.getElementById('welcome-test-title').textContent = appState.currentTest.title;
+        document.getElementById('welcome-test-description').textContent = appState.currentTest.description;
+        document.getElementById('welcome-test-difficulty').textContent = appState.currentTest.difficulty || 'Стандартный';
+        document.getElementById('welcome-test-duration').textContent = appState.currentTest.duration || 'Не указано';
+        document.getElementById('welcome-test-questions').textContent = appState.currentTest.questions ? appState.currentTest.questions.length : 0;
+        document.getElementById('welcome-test-author').textContent = appState.currentTest.author || 'Неизвестен';
+    }
+    
+    // Если показываем админку, обновляем статистику
+    if (screenName === 'admin') {
+        updateAdminStats();
+    }
+    
+    // Если показываем выбор теста, заполняем список
+    if (screenName === 'test-selection') {
+        fillTestSelection();
+    }
+}
+
+// Функции для управления тестами (только для администратора)
 
 // Показать панель управления тестами
 function showTestManagement() {
@@ -429,23 +703,3 @@ function deleteTest(testId) {
         alert('Ошибка удаления теста');
     }
 }
-
-// Экспорт теста
-function exportTest(testId) {
-    const test = testLoader.customTests.get(testId);
-    if (!test) {
-        alert('Тест не найден');
-        return;
-    }
-    
-    const data = JSON.stringify(test, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `test_${test.title}_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-}
-}
-
