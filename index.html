@@ -26,6 +26,7 @@
                     </ul>
                 </div>
                 <button class="vk-button" onclick="startTest()">Начать тест</button>
+                <button class="vk-button secondary" onclick="showAdminPanel()">Админ-панель</button>
             </div>
         </div>
 
@@ -66,15 +67,61 @@
                         <span class="stat-value" id="total-questions">30</span>
                         <span class="stat-label">Всего вопросов</span>
                     </div>
+                    <div class="stat">
+                        <span class="stat-value" id="time-spent">0:00</span>
+                        <span class="stat-label">Затрачено времени</span>
+                    </div>
                 </div>
             </div>
             <button class="vk-button" onclick="restartTest()">Пройти ещё раз</button>
             <button class="vk-button secondary" onclick="shareResult()">Поделиться результатом</button>
+            <button class="vk-button secondary" onclick="showAdminPanel()">Админ-панель</button>
+        </div>
+
+        <!-- Админ-панель -->
+        <div id="admin-screen" class="screen">
+            <div class="admin-header">
+                <h1>📊 Панель администратора</h1>
+                <button class="vk-button secondary" onclick="showScreen('welcome')">← Назад</button>
+            </div>
+            
+            <div class="admin-stats">
+                <div class="stat-card">
+                    <h3>Общая статистика</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number" id="total-tests">0</div>
+                            <div class="stat-label">Всего тестов</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="average-score">0%</div>
+                            <div class="stat-label">Средний результат</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>Лучшие результаты</h3>
+                    <div id="best-results" class="results-list">
+                        <!-- Динамически заполняется -->
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>Все результаты</h3>
+                    <div class="admin-actions">
+                        <button class="vk-button" onclick="exportResults()">Экспорт в JSON</button>
+                        <button class="vk-button secondary" onclick="clearResults()">Очистить все</button>
+                    </div>
+                    <div id="all-results" class="results-list">
+                        <!-- Динамически заполняется -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="questions.js"></script>
     <script src="app.js"></script>
 </body>
-
 </html>
