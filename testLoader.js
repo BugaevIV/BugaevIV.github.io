@@ -15,9 +15,9 @@ class TestLoader {
         // Сканируем доступные тесты на GitHub
         await this.scanAvailableTests();
         
-        // Если нет тестов на GitHub, используем встроенные
+        // Если нет тестов на GitHub, показываем пустой список
         if (this.availableTests.length === 0) {
-            await this.loadBuiltInTests();
+            console.log('Нет доступных тестов для загрузки');
         }
     }
 
@@ -98,7 +98,7 @@ class TestLoader {
                             title: `Тест ${file}`,
                             description: `Автоматически загруженный тест из ${file}`,
                             isRemote: true,
-                            mode: 'exam' // По умолчанию экзаменационный режим
+                            mode: 'exam'
                         });
                     }
                 }
@@ -106,31 +106,6 @@ class TestLoader {
                 console.log(`Файл ${file} не найден`);
             }
         }
-    }
-
-    // Загрузка встроенных тестов (резервные) - УБРАН обучающий тест
-    async loadBuiltInTests() {
-        const builtInTests = [
-            // Встроенные тесты удалены, будут загружаться только с GitHub
-        ];
-
-        builtInTests.forEach(test => {
-            // Добавляем только НЕ обучающие тесты
-            if (test.mode !== 'tutorial') {
-                this.availableTests.push({
-                    id: test.id,
-                    filename: test.filename,
-                    title: test.title,
-                    description: test.description,
-                    difficulty: test.difficulty,
-                    duration: test.duration,
-                    totalQuestions: test.totalQuestions,
-                    mode: test.mode,
-                    isBuiltIn: true
-                });
-                this.loadedTests.set(test.id, test);
-            }
-        });
     }
 
     // Загрузка теста по ID
@@ -180,12 +155,6 @@ class TestLoader {
             return testData;
         } catch (error) {
             console.error('Ошибка загрузки теста:', error);
-            
-            // Если тест встроенный, возвращаем его
-            if (testInfo && testInfo.isBuiltIn) {
-                return this.loadedTests.get(testId);
-            }
-            
             throw error;
         }
     }
@@ -290,7 +259,7 @@ class TestLoader {
     // Обновление списка тестов с GitHub
     async refreshTests() {
         this.clearCache();
-        const remoteTests = this.availableTests.filter(t => t.isRemote || t.isBuiltIn);
+        const remoteTests = this.availableTests.filter(t => t.isRemote);
         this.availableTests = [...remoteTests];
         
         // Добавляем кастомные тесты (только НЕ обучающие)
