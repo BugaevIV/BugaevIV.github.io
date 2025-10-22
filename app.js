@@ -143,7 +143,14 @@ function fillTestSelection() {
     const container = document.getElementById('tests-container');
     container.innerHTML = '';
     
-    if (appState.availableTests.length === 0) {
+    // Двойная фильтрация для гарантии
+    const filteredTests = appState.availableTests.filter(test => 
+        test.mode !== 'tutorial' && 
+        !test.title.includes('Обучающий') && 
+        !test.description.includes('обучения')
+    );
+    
+    if (filteredTests.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <h3>Тесты не найдены</h3>
@@ -154,10 +161,7 @@ function fillTestSelection() {
         return;
     }
     
-    appState.availableTests.forEach(test => {
-        // Показываем только НЕ обучающие тесты
-        if (test.mode === 'tutorial') return;
-        
+    filteredTests.forEach(test => {
         const testElement = document.createElement('div');
         testElement.className = 'test-card';
         
