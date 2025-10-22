@@ -28,6 +28,31 @@ body {
     display: block;
 }
 
+/* Экран загрузки */
+.loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 60vh;
+    text-align: center;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #4BB34B;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 /* Шапка */
 .header {
     text-align: center;
@@ -48,7 +73,7 @@ body {
 }
 
 /* Карточки */
-.info-card, .question-card, .result-card {
+.info-card, .question-card, .result-card, .stat-card {
     background: #fff;
     border-radius: 12px;
     padding: 20px;
@@ -107,6 +132,19 @@ body {
 
 .vk-button.secondary:hover {
     background: #E1E3E6;
+}
+
+.vk-button.small {
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+.vk-button.danger {
+    background: #ff4757;
+}
+
+.vk-button.danger:hover {
+    background: #ff3742;
 }
 
 /* Прогресс-бар */
@@ -229,21 +267,6 @@ body {
     color: #6D7885;
 }
 
-/* Адаптивность */
-@media (max-width: 375px) {
-    .screen {
-        padding: 15px;
-    }
-    
-    .header h1 {
-        font-size: 20px;
-    }
-    
-    .answer-text {
-        font-size: 14px;
-    }
-
-}
 /* Админ-панель */
 .admin-header {
     display: flex;
@@ -256,14 +279,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 20px;
-}
-
-.stat-card {
-    background: #fff;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    border: 1px solid #e1e3e6;
 }
 
 .stats-grid {
@@ -291,6 +306,7 @@ body {
     display: flex;
     gap: 10px;
     margin-bottom: 15px;
+    flex-wrap: wrap;
 }
 
 .results-list {
@@ -328,6 +344,12 @@ body {
     font-weight: 500;
 }
 
+.result-test {
+    flex: 1;
+    color: #6D7885;
+    font-size: 14px;
+}
+
 .result-score {
     font-weight: 600;
     color: #4BB34B;
@@ -341,22 +363,170 @@ body {
     text-align: right;
 }
 
-/* Адаптивность для админки */
-@media (max-width: 768px) {
-    .admin-result-item {
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-    
-    .result-date {
-        text-align: left;
-        min-width: auto;
-    }
-    
-    .admin-actions {
-        flex-direction: column;
-    }
-    /* Стили для управления тестами */
+/* Статистика по тестам */
+.test-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.test-stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #4BB34B;
+}
+
+.test-stat-title {
+    font-weight: 500;
+    flex: 1;
+}
+
+.test-stat-numbers {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.test-stat-count {
+    font-size: 14px;
+    color: #6D7885;
+}
+
+.test-stat-avg {
+    font-size: 16px;
+    font-weight: 600;
+    color: #4BB34B;
+}
+
+/* Стили для выбора тестов */
+.tests-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.test-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e1e3e6;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.test-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.test-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.test-card-header h3 {
+    margin: 0;
+    color: #000;
+    font-size: 18px;
+    flex: 1;
+}
+
+.test-badges {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.test-badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.test-badge.local {
+    background: #ffa502;
+    color: white;
+}
+
+.test-badge.custom {
+    background: #3742fa;
+    color: white;
+}
+
+.test-difficulty {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 10px;
+}
+
+.test-difficulty.профессиональный {
+    background: #ff4757;
+    color: white;
+}
+
+.test-difficulty.начальный {
+    background: #2ed573;
+    color: white;
+}
+
+.test-difficulty.обязательный {
+    background: #3742fa;
+    color: white;
+}
+
+.test-difficulty.default {
+    background: #6D7885;
+    color: white;
+}
+
+.test-description {
+    color: #6D7885;
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
+.test-meta {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.test-meta-item {
+    color: #6D7885;
+    font-size: 14px;
+}
+
+.test-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.test-actions .vk-button {
+    flex: 1;
+}
+
+/* Действия выбора теста */
+.selection-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+/* Управление тестами */
 .test-management-actions {
     display: flex;
     gap: 10px;
@@ -401,19 +571,6 @@ body {
     gap: 5px;
 }
 
-.vk-button.small {
-    padding: 8px 12px;
-    font-size: 12px;
-}
-
-.vk-button.danger {
-    background: #ff4757;
-}
-
-.vk-button.danger:hover {
-    background: #ff3742;
-}
-
 .custom-tests-list {
     max-height: 400px;
     overflow-y: auto;
@@ -436,8 +593,60 @@ body {
     text-align: center;
 }
 
+/* Состояние пустого списка */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6D7885;
+}
+
+.empty-state h3 {
+    margin-bottom: 10px;
+    color: #000;
+}
+
 /* Адаптивность */
 @media (max-width: 768px) {
+    .screen {
+        padding: 15px;
+    }
+    
+    .header h1 {
+        font-size: 20px;
+    }
+    
+    .answer-text {
+        font-size: 14px;
+    }
+    
+    .test-card-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .test-difficulty {
+        align-self: flex-start;
+    }
+    
+    .test-meta {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .test-stat-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .test-stat-numbers {
+        align-items: flex-start;
+    }
+    
+    .selection-actions {
+        flex-direction: column;
+    }
+    
     .test-management-item {
         flex-direction: column;
         gap: 10px;
@@ -456,6 +665,43 @@ body {
         flex-direction: column;
         gap: 5px;
     }
-}
+    
+    .admin-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .admin-actions {
+        flex-direction: column;
+    }
+    
+    .admin-result-item {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .result-date {
+        text-align: left;
+        min-width: auto;
+    }
 }
 
+@media (max-width: 480px) {
+    .test-card {
+        padding: 15px;
+    }
+    
+    .test-card-header h3 {
+        font-size: 16px;
+    }
+    
+    .result-details {
+        flex-direction: column;
+        gap: 15px;
+    }
+}
