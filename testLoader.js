@@ -29,14 +29,18 @@ class TestLoader {
                 const customTests = JSON.parse(saved);
                 customTests.forEach(test => {
                     this.customTests.set(test.id, test);
-                    this.availableTests.push({
-                        id: test.id,
-                        filename: `custom_${test.id}.json`,
-                        title: test.title,
-                        description: test.description,
-                        isCustom: true,
-                        loadedFrom: 'localStorage'
-                    });
+                    // Добавляем только НЕ обучающие тесты на главную страницу
+                    if (test.mode !== 'tutorial') {
+                        this.availableTests.push({
+                            id: test.id,
+                            filename: `custom_${test.id}.json`,
+                            title: test.title,
+                            description: test.description,
+                            isCustom: true,
+                            loadedFrom: 'localStorage',
+                            mode: test.mode
+                        });
+                    }
                 });
             }
         } catch (error) {
@@ -62,8 +66,8 @@ class TestLoader {
             if (response.ok) {
                 const index = await response.json();
                 index.tests.forEach(test => {
-                    // Добавляем только если тест еще не добавлен
-                    if (!this.availableTests.find(t => t.id === test.id)) {
+                    // Добавляем только если тест еще не добавлен и НЕ обучающий
+                    if (!this.availableTests.find(t => t.id === test.id) && test.mode !== 'tutorial') {
                         this.availableTests.push({
                             ...test,
                             isRemote: true
@@ -79,7 +83,7 @@ class TestLoader {
 
     // Ручное сканирование тестов
     async scanManualTests() {
-        const testFiles = ['test1.json', 'test2.json', 'test3.json', 'questions.json', 'test_main.json', 'test_beginner.json', 'test_tutorial.json'];
+        const testFiles = ['test1.json', 'test2.json', 'test3.json', 'questions.json', 'test_main.json', 'test_beginner.json'];
         
         for (const file of testFiles) {
             try {
@@ -93,7 +97,8 @@ class TestLoader {
                             filename: file,
                             title: `Тест ${file}`,
                             description: `Автоматически загруженный тест из ${file}`,
-                            isRemote: true
+                            isRemote: true,
+                            mode: 'exam' // По умолчанию экзаменационный режим
                         });
                     }
                 }
@@ -103,55 +108,28 @@ class TestLoader {
         }
     }
 
-    // Загрузка встроенных тестов (резервные) - УБИРАЕМ тест по безопасности
+    // Загрузка встроенных тестов (резервные) - УБРАН обучающий тест
     async loadBuiltInTests() {
         const builtInTests = [
-            {
-                id: 'tutorial',
-                filename: 'builtin_tutorial.json',
-                title: 'Обучающий тест по арт-фехтованию',
-                description: 'Тест с подсказками и объяснениями для обучения',
-                difficulty: 'Обучающий',
-                duration: '10-15 минут',
-                totalQuestions: 5,
-                mode: 'tutorial',
-                isBuiltIn: true,
-                questions: [
-                    {
-                        id: 1,
-                        question: "Что является основной спецификой арт-фехтования?",
-                        type: "single",
-                        answers: [
-                            "Все участники постановки -- соперники, борющиеся за победу.",
-                            "Все действия участников заранее известны и отрепетированы, а они сами -- партнеры по команде.",
-                            "Поединок ведется в полном защитном снаряжении.",
-                            "Разрешена и поощряется импровизация для оживления боя."
-                        ],
-                        correct: 1,
-                        explanation: "Это основа определения арт-фехтования. Участники — не соперники, а партнеры, показывающие заранее подготовленную постановку."
-                    }
-                ],
-                scoring: {
-                    excellent: 80,
-                    good: 60,
-                    satisfactory: 40
-                }
-            }
+            // Встроенные тесты удалены, будут загружаться только с GitHub
         ];
 
         builtInTests.forEach(test => {
-            this.availableTests.push({
-                id: test.id,
-                filename: test.filename,
-                title: test.title,
-                description: test.description,
-                difficulty: test.difficulty,
-                duration: test.duration,
-                totalQuestions: test.totalQuestions,
-                mode: test.mode,
-                isBuiltIn: true
-            });
-            this.loadedTests.set(test.id, test);
+            // Добавляем только НЕ обучающие тесты
+            if (test.mode !== 'tutorial') {
+                this.availableTests.push({
+                    id: test.id,
+                    filename: test.filename,
+                    title: test.title,
+                    description: test.description,
+                    difficulty: test.difficulty,
+                    duration: test.duration,
+                    totalQuestions: test.totalQuestions,
+                    mode: test.mode,
+                    isBuiltIn: true
+                });
+                this.loadedTests.set(test.id, test);
+            }
         });
     }
 
@@ -234,8 +212,8 @@ class TestLoader {
         // Сохраняем в кастомные тесты
         this.customTests.set(id, testData);
         
-        // Добавляем в список доступных
-        if (!this.availableTests.find(t => t.id === id)) {
+        // Добавляем в список доступных только НЕ обучающие тесты
+        if (!this.availableTests.find(t => t.id === id) && testData.mode !== 'tutorial') {
             this.availableTests.push({
                 id: id,
                 filename: `custom_${id}.json`,
@@ -273,14 +251,35 @@ class TestLoader {
         return false;
     }
 
-    // Получение списка доступных тестов
+    // Получение списка доступных тестов (только НЕ обучающие)
     getAvailableTests() {
-        return this.availableTests;
+        return this.availableTests.filter(test => test.mode !== 'tutorial');
     }
 
-    // Получение кастомных тестов
+    // Получение всех кастомных тестов (включая обучающие)
     getCustomTests() {
         return Array.from(this.customTests.values());
+    }
+
+    // Получение тестов для админ-панели (все тесты)
+    getAllTestsForAdmin() {
+        const allTests = [...this.availableTests];
+        
+        // Добавляем обучающие тесты из кастомных
+        this.customTests.forEach((test, id) => {
+            if (test.mode === 'tutorial' && !allTests.find(t => t.id === id)) {
+                allTests.push({
+                    id: test.id,
+                    filename: `custom_${test.id}.json`,
+                    title: test.title,
+                    description: test.description,
+                    isCustom: true,
+                    mode: test.mode
+                });
+            }
+        });
+        
+        return allTests;
     }
 
     // Очистка кеша
@@ -292,14 +291,21 @@ class TestLoader {
     async refreshTests() {
         this.clearCache();
         const remoteTests = this.availableTests.filter(t => t.isRemote || t.isBuiltIn);
-        this.availableTests = [...remoteTests, ...this.getCustomTests().map(test => ({
-            id: test.id,
-            filename: `custom_${test.id}.json`,
-            title: test.title,
-            description: test.description,
-            isCustom: true,
-            mode: test.mode
-        }))];
+        this.availableTests = [...remoteTests];
+        
+        // Добавляем кастомные тесты (только НЕ обучающие)
+        this.getCustomTests().forEach(test => {
+            if (test.mode !== 'tutorial' && !this.availableTests.find(t => t.id === test.id)) {
+                this.availableTests.push({
+                    id: test.id,
+                    filename: `custom_${test.id}.json`,
+                    title: test.title,
+                    description: test.description,
+                    isCustom: true,
+                    mode: test.mode
+                });
+            }
+        });
         
         await this.scanAvailableTests();
     }
