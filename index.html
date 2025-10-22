@@ -3,29 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тест по арт-фехтованию</title>
+    <title>Тесты по арт-фехтованию</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="app">
-        <!-- Экран приветствия -->
-        <div id="welcome-screen" class="screen active">
+        <!-- Экран загрузки -->
+        <div id="loading-screen" class="screen active">
+            <div class="loading-content">
+                <div class="loading-spinner" id="loading-spinner"></div>
+                <h2>Загрузка тестов...</h2>
+                <p id="loading-error" style="display: none; color: #ff6b6b;">
+                    Не удалось загрузить тесты. Проверьте подключение к интернету.
+                </p>
+            </div>
+        </div>
+
+        <!-- Экран выбора теста -->
+        <div id="test-selection-screen" class="screen">
             <div class="header">
-                <h1>🤺 Тест по арт-фехтованию</h1>
-                <p>Проверьте свои знания правил</p>
+                <h1>⚔️ Тесты по арт-фехтованию</h1>
+                <p>Выберите тест для проверки знаний</p>
+            </div>
+            <div class="content">
+                <div class="selection-actions">
+                    <button class="vk-button secondary" onclick="refreshTests()">🔄 Обновить список</button>
+                    <button class="vk-button secondary" onclick="showAdminPanel()">👨‍💼 Админ-панель</button>
+                </div>
+                <div id="tests-container" class="tests-container">
+                    <!-- Тесты будут добавлены динамически -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Экран приветствия -->
+        <div id="welcome-screen" class="screen">
+            <div class="header">
+                <h1 id="welcome-test-title">Название теста</h1>
+                <p>Подготовьтесь к тестированию</p>
             </div>
             <div class="content">
                 <div class="info-card">
                     <h3>Информация о тесте:</h3>
                     <ul>
-                        <li>✅ 30 вопросов</li>
-                        <li>⏱ 15-20 минут</li>
-                        <li>📊 Автопроверка</li>
-                                </ul>
+                        <li>📝 <strong id="welcome-test-description">Описание</strong></li>
+                        <li>🎯 Сложность: <span id="welcome-test-difficulty">-</span></li>
+                        <li>⏱ Время: <span id="welcome-test-duration">-</span></li>
+                        <li>❓ Вопросов: <span id="welcome-test-questions">-</span></li>
+                        <li>👤 Автор: <span id="welcome-test-author">-</span></li>
+                    </ul>
                 </div>
                 <button class="vk-button" onclick="startTest()">Начать тест</button>
-                <button class="vk-button secondary" onclick="showAdminPanel()">Админ-панель</button>
+                <button class="vk-button secondary" onclick="showScreen('test-selection')">← Выбрать другой тест</button>
             </div>
         </div>
 
@@ -50,6 +80,7 @@
         <div id="result-screen" class="screen">
             <div class="result-header">
                 <h1>🎉 Тест завершен!</h1>
+                <p id="test-title">Название теста</p>
             </div>
             <div class="result-card">
                 <div class="score-circle" id="score-circle">
@@ -63,7 +94,7 @@
                         <span class="stat-label">Правильных ответов</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-value" id="total-questions">30</span>
+                        <span class="stat-value" id="total-questions">0</span>
                         <span class="stat-label">Всего вопросов</span>
                     </div>
                     <div class="stat">
@@ -72,7 +103,7 @@
                     </div>
                 </div>
             </div>
-            <button class="vk-button" onclick="restartTest()">Пройти ещё раз</button>
+            <button class="vk-button" onclick="restartTest()">Выбрать другой тест</button>
             <button class="vk-button secondary" onclick="shareResult()">Поделиться результатом</button>
             <button class="vk-button secondary" onclick="showAdminPanel()">Админ-панель</button>
         </div>
@@ -81,7 +112,7 @@
         <div id="admin-screen" class="screen">
             <div class="admin-header">
                 <h1>📊 Панель администратора</h1>
-                <button class="vk-button secondary" onclick="showScreen('welcome')">← Назад</button>
+                <button class="vk-button secondary" onclick="showScreen('test-selection')">← Назад к тестам</button>
             </div>
             
             <div class="admin-stats">
@@ -90,12 +121,28 @@
                     <div class="stats-grid">
                         <div class="stat-item">
                             <div class="stat-number" id="total-tests">0</div>
-                            <div class="stat-label">Всего тестов</div>
+                            <div class="stat-label">Всего тестов пройдено</div>
                         </div>
                         <div class="stat-item">
                             <div class="stat-number" id="average-score">0%</div>
                             <div class="stat-label">Средний результат</div>
                         </div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>Статистика по тестам</h3>
+                    <div id="test-stats" class="test-stats">
+                        <!-- Динамически заполняется -->
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>Управление системой</h3>
+                    <div class="admin-actions">
+                        <button class="vk-button" onclick="exportResults()">📊 Экспорт результатов</button>
+                        <button class="vk-button secondary" onclick="showTestManagement()">📁 Управление тестами</button>
+                        <button class="vk-button secondary" onclick="clearResults()">🗑️ Очистить результаты</button>
                     </div>
                 </div>
                 
@@ -108,51 +155,42 @@
                 
                 <div class="stat-card">
                     <h3>Все результаты</h3>
-                    <div class="admin-actions">
-                        <button class="vk-button" onclick="exportResults()">Экспорт в JSON</button>
-                        <button class="vk-button secondary" onclick="clearResults()">Очистить все</button>
-                    </div>
                     <div id="all-results" class="results-list">
                         <!-- Динамически заполняется -->
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <script src="questions.js"></script>
-    <script src="app.js"></script>
-    <!-- Добавляем после админ-панели -->
-
-<!-- Панель управления тестами -->
-<div id="test-management-screen" class="screen">
-    <div class="admin-header">
-        <h1>📁 Управление тестами</h1>
-        <button class="vk-button secondary" onclick="showScreen('admin')">← Назад к статистике</button>
-    </div>
-    
-    <div class="admin-stats">
-        <div class="stat-card">
-            <h3>Загрузка тестов</h3>
-            <div class="test-management-actions">
-                <button class="vk-button" onclick="uploadTest()">📁 Загрузить из файла</button>
-                <button class="vk-button" onclick="uploadTestFromUrl()">🌐 Загрузить по URL</button>
-                <button class="vk-button secondary" onclick="createNewTest()">➕ Создать новый</button>
+        <!-- Панель управления тестами -->
+        <div id="test-management-screen" class="screen">
+            <div class="admin-header">
+                <h1>📁 Управление тестами</h1>
+                <button class="vk-button secondary" onclick="showScreen('admin')">← Назад к статистике</button>
             </div>
-            <p class="help-text">Поддерживаются JSON файлы с тестами в правильном формате</p>
-        </div>
-        
-        <div class="stat-card">
-            <h3>Мои тесты</h3>
-            <div id="custom-tests-list" class="custom-tests-list">
-                <!-- Список тестов будет здесь -->
-            </div>
-        </div>
-        
-        <div class="stat-card">
-            <h3>Формат теста</h3>
-            <div class="format-example">
-                <pre><code>{
+            
+            <div class="admin-stats">
+                <div class="stat-card">
+                    <h3>Загрузка тестов</h3>
+                    <div class="test-management-actions">
+                        <button class="vk-button" onclick="uploadTest()">📁 Загрузить из файла</button>
+                        <button class="vk-button" onclick="uploadTestFromUrl()">🌐 Загрузить по URL</button>
+                        <button class="vk-button secondary" onclick="createNewTest()">➕ Создать новый</button>
+                    </div>
+                    <p class="help-text">Поддерживаются JSON файлы с тестами в правильном формате</p>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>Мои тесты</h3>
+                    <div id="custom-tests-list" class="custom-tests-list">
+                        <!-- Список тестов будет здесь -->
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>Формат теста</h3>
+                    <div class="format-example">
+                        <pre><code>{
   "title": "Название теста",
   "description": "Описание теста",
   "questions": [
@@ -171,21 +209,13 @@
     "satisfactory": 40
   }
 }</code></pre>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
-    <!-- В админ-панели добавляем кнопку управления тестами -->
-<div class="stat-card">
-    <h3>Управление системой</h3>
-    <div class="admin-actions">
-        <button class="vk-button" onclick="exportResults()">📊 Экспорт результатов</button>
-        <button class="vk-button secondary" onclick="showTestManagement()">📁 Управление тестами</button>
-        <button class="vk-button secondary" onclick="clearResults()">🗑️ Очистить результаты</button>
-    </div>
-</div>
+
+    <script src="testLoader.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
-
-
-
