@@ -239,97 +239,213 @@ function showResults(percentage, timeSpent) {
     showScreen('result');
 }
 
-// Админ-панель
-function showAdminPanel() {
+// Функции для администратора (добавляем в app.js)
+
+// Показать панель управления тестами
+function showTestManagement() {
     const password = prompt('Введите пароль администратора:');
-    if (password === resultsStorage.adminKey) {
-        showScreen('admin');
-    } else {
+    if (password !== resultsStorage.adminKey) {
         alert('Неверный пароль!');
+        return;
+    }
+    
+    showScreen('test-management');
+    updateTestManagement();
+}
+
+// Обновление панели управления тестами
+function updateTestManagement() {
+    const customTests = testLoader.getCustomTests();
+    const container = document.getElementById('custom-tests-list');
+    
+    container.innerHTML = '';
+    
+    if (customTests.length === 0) {
+        container.innerHTML = '<div class="empty-state">Нет загруженных тестов</div>';
+        return;
+    }
+    
+    customTests.forEach(test => {
+        const testElement = document.createElement('div');
+        testElement.className = 'test-management-item';
+        testElement.innerHTML = `
+            <div class="test-management-info">
+                <h4>${test.title}</h4>
+                <p>${test.description || 'Без описания'}</p>
+                <div class="test-management-meta">
+                    <span>Вопросов: ${test.questions.length}</span>
+                    <span>Загружен: ${new Date(test.loadDate).toLocaleDateString()}</span>
+                </div>
+            </div>
+            <div class="test-management-actions">
+                <button class="vk-button small" onclick="previewTest('${test.id}')">👁️ Просмотр</button>
+                <button class="vk-button small secondary" onclick="editTest('${test.id}')">✏️ Редактировать</button>
+                <button class="vk-button small danger" onclick="deleteTest('${test.id}')">🗑️ Удалить</button>
+            </div>
+        `;
+        container.appendChild(testElement);
+    });
+}
+
+// Загрузка теста из JSON
+function uploadTest() {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+    
+    fileInput.onchange = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const testData = JSON.parse(e.target.result);
+                
+                // Валидация базовой структуры
+                if (!testData.title || !testData.questions || !Array.isArray(testData.questions)) {
+                    throw new Error('Неверный формат теста');
+                }
+                
+                // Добавляем тест
+                const test = testLoader.addCustomTest(testData);
+                alert(`Тест "${test.title}" успешно загружен!`);
+                updateTestManagement();
+                
+            } catch (error) {
+                alert('Ошибка загрузки теста: ' + error.message);
+            }
+        };
+        
+        reader.readAsText(file);
+    };
+    
+    fileInput.click();
+}
+
+// Загрузка теста по URL
+function uploadTestFromUrl() {
+    const url = prompt('Введите URL JSON файла с тестом:');
+    if (!url) return;
+    
+    showScreen('loading');
+    
+    fetch(url)
+        .then(response => {
+            if (!response.ok) throw new Error('Ошибка загрузки: ' + response.status);
+            return response.json();
+        })
+        .then(testData => {
+            // Валидация базовой структуры
+            if (!testData.title || !testData.questions || !Array.isArray(testData.questions)) {
+                throw new Error('Неверный формат теста');
+            }
+            
+            // Добавляем тест
+            const test = testLoader.addCustomTest(testData);
+            alert(`Тест "${test.title}" успешно загружен!`);
+            showScreen('test-management');
+            updateTestManagement();
+        })
+        .catch(error => {
+            alert('Ошибка загрузки теста: ' + error.message);
+            showScreen('test-management');
+        });
+}
+
+// Создание нового теста
+function createNewTest() {
+    const title = prompt('Введите название теста:');
+    if (!title) return;
+    
+    const description = prompt('Введите описание теста:') || '';
+    
+    const newTest = {
+        title: title,
+        description: description,
+        questions: [],
+        scoring: {
+            excellent: 80,
+            good: 60,
+            satisfactory: 40
+        }
+    };
+    
+    const test = testLoader.addCustomTest(newTest);
+    editTest(test.id);
+}
+
+// Редактирование теста
+function editTest(testId) {
+    const test = testLoader.customTests.get(testId);
+    if (!test) {
+        alert('Тест не найден');
+        return;
+    }
+    
+    // В реальном приложении здесь будет полноценный редактор тестов
+    const newTitle = prompt('Новое название теста:', test.title);
+    if (newTitle) test.title = newTitle;
+    
+    const newDescription = prompt('Новое описание теста:', test.description || '');
+    test.description = newDescription;
+    
+    testLoader.saveCustomTestsToStorage();
+    updateTestManagement();
+    alert('Тест обновлен!');
+}
+
+// Просмотр теста
+function previewTest(testId) {
+    const test = testLoader.customTests.get(testId);
+    if (!test) {
+        alert('Тест не найден');
+        return;
+    }
+    
+    let previewText = `Название: ${test.title}\n`;
+    previewText += `Описание: ${test.description || 'нет'}\n`;
+    previewText += `Вопросов: ${test.questions.length}\n\n`;
+    
+    test.questions.forEach((question, index) => {
+        previewText += `Вопрос ${index + 1}: ${question.question}\n`;
+        question.answers.forEach((answer, ansIndex) => {
+            previewText += `  ${ansIndex + 1}. ${answer}\n`;
+        });
+        previewText += `Правильный ответ: ${Array.isArray(question.correct) ? question.correct.join(', ') : question.correct}\n\n`;
+    });
+    
+    alert(previewText);
+}
+
+// Удаление теста
+function deleteTest(testId) {
+    if (!confirm('Вы уверены, что хотите удалить этот тест?')) return;
+    
+    if (testLoader.removeCustomTest(testId)) {
+        alert('Тест удален!');
+        updateTestManagement();
+    } else {
+        alert('Ошибка удаления теста');
     }
 }
 
-// Обновление статистики в админке
-function updateAdminStats() {
-    const results = resultsStorage.results;
+// Экспорт теста
+function exportTest(testId) {
+    const test = testLoader.customTests.get(testId);
+    if (!test) {
+        alert('Тест не найден');
+        return;
+    }
     
-    // Общая статистика
-    document.getElementById('total-tests').textContent = results.length;
-    document.getElementById('average-score').textContent = 
-        results.length > 0 ? Math.round(results.reduce((sum, r) => sum + r.percentage, 0) / results.length) + '%' : '0%';
-    
-    // Лучшие результаты
-    const bestResults = [...results].sort((a, b) => b.percentage - a.percentage).slice(0, 5);
-    const bestResultsContainer = document.getElementById('best-results');
-    bestResultsContainer.innerHTML = '';
-    
-    bestResults.forEach((result, index) => {
-        const resultElement = document.createElement('div');
-        resultElement.className = 'admin-result-item';
-        resultElement.innerHTML = `
-            <div class="result-rank">${index + 1}</div>
-            <div class="result-user">${result.userName}</div>
-            <div class="result-score">${result.percentage}%</div>
-            <div class="result-date">${new Date(result.date).toLocaleDateString()}</div>
-        `;
-        bestResultsContainer.appendChild(resultElement);
-    });
-    
-    // Все результаты
-    const allResultsContainer = document.getElementById('all-results');
-    allResultsContainer.innerHTML = '';
-    
-    results.forEach((result, index) => {
-        const resultElement = document.createElement('div');
-        resultElement.className = 'admin-result-item';
-        resultElement.innerHTML = `
-            <div class="result-rank">${index + 1}</div>
-            <div class="result-user">${result.userName}</div>
-            <div class="result-score">${result.score}/${result.total} (${result.percentage}%)</div>
-            <div class="result-date">${new Date(result.date).toLocaleString()}</div>
-        `;
-        allResultsContainer.appendChild(resultElement);
-    });
-}
-
-// Экспорт результатов
-function exportResults() {
-    const data = JSON.stringify(resultsStorage.results, null, 2);
+    const data = JSON.stringify(test, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `fencing_results_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `test_${test.title}_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
 }
-
-// Очистка результатов
-function clearResults() {
-    if (confirm('Вы уверены, что хотите удалить все результаты? Это действие нельзя отменить.')) {
-        resultsStorage.results = [];
-        saveResults();
-        updateAdminStats();
-        alert('Результаты очищены!');
-    }
 }
 
-// Перезапуск теста
-function restartTest() {
-    showScreen('welcome');
-}
-
-// Поделиться результатом
-function shareResult() {
-    const percentage = Math.round((appState.score / testQuestions.length) * 100);
-    
-    if (typeof vkBridge !== 'undefined') {
-        vkBridge.send('VKWebAppShowWallPostBox', {
-            message: `Я прошел тест по арт-фехтованию и набрал ${percentage}%! Проверь свои знания тоже!`
-        }).catch(error => {
-            alert(`Мой результат: ${percentage}% правильных ответов!`);
-        });
-    } else {
-        alert(`Мой результат: ${percentage}% правильных ответов!`);
-    }
-}
