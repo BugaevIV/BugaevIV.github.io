@@ -71,9 +71,20 @@
             <div class="question-card">
                 <h2 id="question-text"></h2>
                 <div id="answers-container" class="answers-container"></div>
+                
+                <!-- Контейнер для объяснения (только для обучающего режима) -->
+                <div id="explanation-container" class="explanation-container" style="display: none;">
+                    <div class="explanation-header">
+                        <h3>💡 Объяснение</h3>
+                    </div>
+                    <p id="explanation-text"></p>
+                </div>
             </div>
             
-            <button class="vk-button" id="next-button" onclick="nextQuestion()" disabled>Далее</button>
+            <div class="test-actions">
+                <button class="vk-button" id="next-button" onclick="nextQuestion()" disabled>Далее</button>
+                <button class="vk-button secondary" onclick="finishTestEarly()">Завершить тест</button>
+            </div>
         </div>
 
         <!-- Экран результатов -->
@@ -193,6 +204,7 @@
                         <pre><code>{
   "title": "Название теста",
   "description": "Описание теста",
+  "mode": "exam", // или "tutorial" для обучающего режима
   "questions": [
     {
       "id": 1,
