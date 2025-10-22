@@ -12,7 +12,8 @@ let appState = {
     userName: 'Гость',
     currentTest: null,
     availableTests: [],
-    testCompleted: false
+    testCompleted: false,
+    isAdmin: false
 };
 
 // Хранилище результатов
@@ -39,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Инициализация загрузчика тестов
         await testLoader.init();
         
-        // Загрузка доступных тестов
+        // Загрузка доступных тестов (только НЕ обучающие)
         appState.availableTests = testLoader.getAvailableTests();
         
         // Загрузка сохраненных результатов
@@ -99,6 +100,15 @@ async function selectTest(testId) {
         if (test) {
             appState.currentTest = test;
             appState.testCompleted = false;
+            
+            // Заполняем информацию на экране приветствия
+            document.getElementById('welcome-test-title').textContent = test.title;
+            document.getElementById('welcome-test-description').textContent = test.description;
+            document.getElementById('welcome-test-difficulty').textContent = test.difficulty || 'Стандартный';
+            document.getElementById('welcome-test-duration').textContent = test.duration || 'Не указано';
+            document.getElementById('welcome-test-questions').textContent = test.questions ? test.questions.length : 0;
+            document.getElementById('welcome-test-author').textContent = test.author || 'Неизвестен';
+            
             showScreen('welcome');
         } else {
             throw new Error('Тест не найден');
@@ -128,7 +138,7 @@ async function refreshTests() {
     }
 }
 
-// Заполнение списка тестов
+// Заполнение списка тестов (только НЕ обучающие)
 function fillTestSelection() {
     const container = document.getElementById('tests-container');
     container.innerHTML = '';
@@ -145,13 +155,15 @@ function fillTestSelection() {
     }
     
     appState.availableTests.forEach(test => {
+        // Показываем только НЕ обучающие тесты
+        if (test.mode === 'tutorial') return;
+        
         const testElement = document.createElement('div');
         testElement.className = 'test-card';
         
         const isLocal = test.isLocal;
         const isCustom = test.isCustom;
         const isBuiltIn = test.isBuiltIn;
-        const isTutorial = test.mode === 'tutorial';
         
         testElement.innerHTML = `
             <div class="test-card-header">
@@ -160,7 +172,6 @@ function fillTestSelection() {
                     ${isLocal ? '<span class="test-badge local">Локальный</span>' : ''}
                     ${isCustom ? '<span class="test-badge custom">Пользовательский</span>' : ''}
                     ${isBuiltIn ? '<span class="test-badge local">Встроенный</span>' : ''}
-                    ${isTutorial ? '<span class="test-badge tutorial">Обучающий</span>' : ''}
                     <span class="test-difficulty ${test.difficulty ? test.difficulty.toLowerCase() : 'default'}">
                         ${test.difficulty || 'Стандартный'}
                     </span>
@@ -171,19 +182,23 @@ function fillTestSelection() {
                 ${test.duration ? `<span class="test-meta-item">⏱ ${test.duration}</span>` : ''}
                 ${test.totalQuestions ? `<span class="test-meta-item">❓ ${test.totalQuestions} вопросов</span>` : ''}
                 ${test.author ? `<span class="test-meta-item">👤 ${test.author}</span>` : ''}
-                ${isTutorial ? '<span class="test-meta-item">💡 С подсказками</span>' : ''}
             </div>
             <div class="test-actions">
                 <button class="vk-button" onclick="selectTest('${test.id}')">Выбрать тест</button>
-                ${isCustom ? `<button class="vk-button secondary small" onclick="removeCustomTest('${test.id}')">Удалить</button>` : ''}
+                ${isCustom && appState.isAdmin ? `<button class="vk-button secondary small" onclick="removeCustomTest('${test.id}')">Удалить</button>` : ''}
             </div>
         `;
         container.appendChild(testElement);
     });
 }
 
-// Удаление пользовательского теста
+// Удаление пользовательского теста (только для администратора)
 function removeCustomTest(testId) {
+    if (!appState.isAdmin) {
+        alert('Только администратор может удалять тесты!');
+        return;
+    }
+    
     if (confirm('Удалить этот тест из списка?')) {
         testLoader.removeCustomTest(testId);
         appState.availableTests = appState.availableTests.filter(t => t.id !== testId);
@@ -240,6 +255,8 @@ function displayQuestion() {
     // Для обучающего режима показываем подсказку
     if (appState.currentTest.mode === 'tutorial') {
         document.getElementById('next-button').textContent = 'Выберите ответ для проверки';
+    } else {
+        document.getElementById('next-button').textContent = 'Далее';
     }
 }
 
@@ -249,7 +266,7 @@ function selectAnswer(answerIndex) {
     const answerOptions = document.querySelectorAll('.answer-option');
     
     // Если это обучающий режим и ответ уже проверялся, не делаем ничего
-    if (appState.currentTest.mode === 'tutorial' && appState.userAnswers[appState.currentQuestion]) {
+    if (appState.currentTest.mode === 'tutorial' && appState.userAnswers[appState.currentQuestion] !== undefined) {
         return;
     }
     
@@ -268,7 +285,7 @@ function selectAnswer(answerIndex) {
     }
 }
 
-// Проверка ответа в обучающем режиме
+// Проверка ответа в обучающем режиме - ИСПРАВЛЕНА
 function checkAnswerInTutorialMode(userAnswer, question) {
     const answerOptions = document.querySelectorAll('.answer-option');
     const isCorrect = Array.isArray(question.correct) 
@@ -339,7 +356,6 @@ function finishTest() {
     const timeSpent = Math.round((appState.endTime - appState.startTime) / 1000);
     
     // Для обучающего режима процент = (правильные ответы / общее количество вопросов) * 100
-    // Для экзаменационного режима используем обычный расчет
     let percentage;
     if (appState.currentTest.mode === 'tutorial') {
         percentage = Math.round((appState.score / appState.currentTest.questions.length) * 100);
@@ -455,6 +471,7 @@ function showResults(percentage, timeSpent) {
 function showAdminPanel() {
     const password = prompt('Введите пароль администратора:');
     if (password === resultsStorage.adminKey) {
+        appState.isAdmin = true;
         showScreen('admin');
         updateAdminStats();
     } else {
@@ -475,7 +492,8 @@ function updateAdminStats() {
     
     // Статистика по тестам
     const testStats = {};
-    appState.availableTests.forEach(test => {
+    const allTests = testLoader.getAllTestsForAdmin();
+    allTests.forEach(test => {
         testStats[test.id] = {
             title: test.title,
             count: 0,
@@ -621,9 +639,8 @@ function showScreen(screenName) {
 
 // Показать панель управления тестами
 function showTestManagement() {
-    const password = prompt('Введите пароль администратора:');
-    if (password !== resultsStorage.adminKey) {
-        alert('Неверный пароль!');
+    if (!appState.isAdmin) {
+        alert('Только администратор может управлять тестами!');
         return;
     }
     
@@ -668,6 +685,11 @@ function updateTestManagement() {
 
 // Загрузка теста из JSON
 function uploadTest() {
+    if (!appState.isAdmin) {
+        alert('Только администратор может загружать тесты!');
+        return;
+    }
+    
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = '.json';
@@ -704,6 +726,11 @@ function uploadTest() {
 
 // Загрузка теста по URL
 function uploadTestFromUrl() {
+    if (!appState.isAdmin) {
+        alert('Только администратор может загружать тесты!');
+        return;
+    }
+    
     const url = prompt('Введите URL JSON файла с тестом:');
     if (!url) return;
     
@@ -734,6 +761,11 @@ function uploadTestFromUrl() {
 
 // Создание нового теста
 function createNewTest() {
+    if (!appState.isAdmin) {
+        alert('Только администратор может создавать тесты!');
+        return;
+    }
+    
     const title = prompt('Введите название теста:');
     if (!title) return;
     
@@ -759,6 +791,11 @@ function createNewTest() {
 
 // Редактирование теста
 function editTest(testId) {
+    if (!appState.isAdmin) {
+        alert('Только администратор может редактировать тесты!');
+        return;
+    }
+    
     const test = testLoader.customTests.get(testId);
     if (!test) {
         alert('Тест не найден');
@@ -808,8 +845,13 @@ function previewTest(testId) {
     alert(previewText);
 }
 
-// Удаление теста
+// Удаление теста (только для администратора)
 function deleteTest(testId) {
+    if (!appState.isAdmin) {
+        alert('Только администратор может удалять тесты!');
+        return;
+    }
+    
     if (!confirm('Вы уверены, что хотите удалить этот тест?')) return;
     
     if (testLoader.removeCustomTest(testId)) {
